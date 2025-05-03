@@ -1,153 +1,58 @@
 
-let dots = [];
-let colors;
-let resolution = 36;
-let osc;
+let notes = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25];
+let colorButtons = [];
+let currentColor;
+let globalReverb;
+let activeOscillators = [];
 
 function setup() {
+  userStartAudio();
   createCanvas(windowWidth, windowHeight);
   background(0);
   noFill();
   strokeWeight(2);
-
-  colors = [
-    color(255, 100, 100),
-    color(255, 180, 180),
-    color(100, 150, 255),
-    color(180, 210, 255)
-  ];
-
-  osc = new p5.Oscillator();
-  osc.setType('triangle');
-  osc.start();
-  osc.amp(0);
+  createColorButtons();
+  globalReverb = new p5.Reverb(); // 리버브 하나만 생성
 }
 
 function draw() {
-  background(0);
-  for (let i = 0; i < dots.length; i++) {
-    dots[i].update(dots);
-    dots[i].display();
+  if (mouseIsPressed && mouseY > 50) {
+    stroke(currentColor);
+    line(pmouseX, pmouseY, mouseX, mouseY);
+    playNote(mouseY);
   }
 }
 
-function mousePressed() {
-  try {
-    userStartAudio();
-  } catch(e) {
-    console.warn("Audio resume failed", e);
-  }
+function createColorButtons() {
+  let colors = ["#FF6B6B", "#6BCB77", "#4D96FF", "#FFC75F", "#B28DFF"];
+  let container = select("#colorContainer");
+  colors.forEach((c) => {
+    let btn = createButton("");
+    btn.style("background-color", c);
+    btn.class("color-button");
+    btn.mousePressed(() => currentColor = c);
+    btn.parent(container);
+    colorButtons.push(btn);
+  });
+  currentColor = colors[0];
+}
 
-  if (getAudioContext().state !== 'running') {
-    getAudioContext().resume().then(() => {
-      console.log("Audio resumed");
-    }).catch(err => {
-      console.error("Audio resume error:", err);
-    });
-  }
-  for (let dot of dots) {
-    let d = dist(mouseX, mouseY, dot.pos.x, dot.pos.y);
-    if (d < dot.radius + 6) return;
-  }
-  dots.push(new Dot(mouseX, mouseY));
+function playNote(yPos) {
+  let freqIndex = floor(map(yPos, 0, height, 0, notes.length));
+  freqIndex = constrain(freqIndex, 0, notes.length - 1);
+  let freq = notes[notes.length - 1 - freqIndex];
 
-  let freq = random(100, 104);
-  let dur = 0.2;
+  let osc = new p5.Oscillator("sine");
   osc.freq(freq);
-  osc.amp(0.2, 0.09);
-  setTimeout(() => {
-    osc.amp(0, 0.5);
-  }, dur * 1000);
-}
+  osc.amp(0.06, 0.1);
+  osc.start();
 
-class Dot {
-  constructor(x, y) {
-    this.pos = createVector(x, y);
-    this.baseRadius = 5;
-    this.radius = this.baseRadius;
-    this.targetRadius = random(20, 60);
-    this.growthSpeed = 0.4;
-    this.color = random(colors);
-    this.locked = false;
-    this.shapePoints = [];
+  globalReverb.process(osc, 3, 2);
+  osc.stop(2.5); // 사운드 길이 조정
+
+  activeOscillators.push(osc);
+  if (activeOscillators.length > 10) {
+    let old = activeOscillators.shift();
+    old.dispose(); // 오래된 오실레이터 해제
   }
-
-  update(others) {
-    if (this.locked) return;
-
-    let canGrow = true;
-    for (let other of others) {
-      if (other === this) continue;
-      let d = dist(this.pos.x, this.pos.y, other.pos.x, other.pos.y);
-      if (d < this.radius + other.radius - 6) {
-        canGrow = false;
-        break;
-      }
-    }
-
-    if (canGrow && this.radius < this.targetRadius) {
-      this.radius += this.growthSpeed;
-    } else {
-      this.locked = true;
-      this.captureShape(others);
-    }
-  }
-
-  captureShape(others) {
-    this.shapePoints = [];
-    for (let i = 0; i <= resolution; i++) {
-      let angle = TWO_PI * i / resolution;
-      let x = cos(angle);
-      let y = sin(angle);
-      let r = this.radius;
-
-      for (let other of dots) {
-        if (other === this) continue;
-        let testPoint = p5.Vector.add(this.pos, createVector(x, y).mult(this.radius));
-        let d = dist(testPoint.x, testPoint.y, other.pos.x, other.pos.y);
-        if (d < this.radius + other.radius - 2) {
-          r -= map(this.radius + other.radius - d, 0, this.radius, 0, 8);
-        }
-      }
-
-      let vx = this.pos.x + x * r;
-      let vy = this.pos.y + y * r;
-      this.shapePoints.push(createVector(vx, vy));
-    }
-  }
-
-  display() {
-    stroke(this.color);
-    beginShape();
-    if (this.locked && this.shapePoints.length > 0) {
-      for (let pt of this.shapePoints) {
-        curveVertex(pt.x, pt.y);
-      }
-    } else {
-      for (let i = 0; i <= resolution; i++) {
-        let angle = TWO_PI * i / resolution;
-        let x = cos(angle);
-        let y = sin(angle);
-        let r = this.radius;
-
-        for (let other of dots) {
-          if (other === this) continue;
-          let testPoint = p5.Vector.add(this.pos, createVector(x, y).mult(this.radius));
-          let d = dist(testPoint.x, testPoint.y, other.pos.x, other.pos.y);
-          if (d < this.radius + other.radius - 2) {
-            r -= map(this.radius + other.radius - d, 0, this.radius, 0, 8);
-          }
-        }
-
-        let vx = this.pos.x + x * r;
-        let vy = this.pos.y + y * r;
-        curveVertex(vx, vy);
-      }
-    }
-    endShape(CLOSE);
-  }
-}
-
-function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
 }
