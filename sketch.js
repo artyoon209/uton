@@ -44,15 +44,19 @@ function playNote(yPos) {
 
   let osc = new p5.Oscillator("sine");
   osc.freq(freq);
-  osc.amp(0.06, 0.1);
+  osc.amp(0, 0); // 시작 시 무음
   osc.start();
+  osc.amp(0.06, 0.2); // 부드러운 페이드인
 
-  globalReverb.process(osc, 3, 2);
-  osc.stop(2.5); // 사운드 길이 조정
+  setTimeout(() => {
+    globalReverb.process(osc, 3, 2); // 20ms 후 리버브 적용
+  }, 20);
+
+  osc.stop(2.5); // 2.5초 뒤 정지
 
   activeOscillators.push(osc);
   if (activeOscillators.length > 10) {
     let old = activeOscillators.shift();
-    old.dispose(); // 오래된 오실레이터 해제
+    old.dispose(); // 메모리 정리
   }
 }
