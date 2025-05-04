@@ -52,12 +52,12 @@ function mousePressed() {
   dots.push(new Dot(mouseX, mouseY));
 
   let freq = random(130, 184);
-  let dur = 0.2;
+  let dur = 0.4;
   osc.freq(freq);
-  osc.amp(0.2, 0.1);
+  osc.amp(0.01, 0.3);
   setTimeout(() => {
-    osc.amp(0, 0.5);
-  }, dur * 1000);
+    osc.amp(0, 0.1);
+  }, dur * 3000);
 }
 
 class Dot {
