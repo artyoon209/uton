@@ -51,10 +51,10 @@ function mousePressed() {
   }
   dots.push(new Dot(mouseX, mouseY));
 
-  let freq = random(100, 104);
+  let freq = random(130, 184);
   let dur = 0.2;
   osc.freq(freq);
-  osc.amp(0.2, 0.09);
+  osc.amp(0.2, 0.1);
   setTimeout(() => {
     osc.amp(0, 0.5);
   }, dur * 1000);
